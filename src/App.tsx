@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Wallet, 
   Bell, 
@@ -18,10 +18,15 @@ import {
   LogOut,
   ChevronRight,
   LayoutDashboard,
-  PieChart
+  PieChart,
+  Loader2,
+  AlertCircle,
+  ShoppingCart
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReportPage } from './components/ReportPage';
+import { HistoryPage } from './components/HistoryPage';
+import { supabase } from './services/supabase';
 
 type Page = 'dashboard' | 'reports' | 'history' | 'profile';
 
@@ -120,7 +125,7 @@ const MobileHeader = () => (
   </header>
 );
 
-const BalanceCard = () => (
+const BalanceCard = ({ balance, trend }: { balance: number, trend: number }) => (
   <motion.section 
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -132,17 +137,17 @@ const BalanceCard = () => (
     <div className="relative z-10">
       <p className="text-[14px] font-semibold opacity-80 uppercase tracking-widest mb-2">Total Balance</p>
       <div className="flex flex-col lg:flex-row lg:items-end gap-4 lg:gap-8">
-        <p className="text-[40px] lg:text-[56px] font-bold tracking-tight leading-none">$12,450.00</p>
+        <p className="text-[40px] lg:text-[56px] font-bold tracking-tight leading-none">${balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
         <div className="flex items-center gap-2 bg-white/20 w-fit px-4 py-1.5 rounded-full backdrop-blur-md mb-2">
           <TrendingUp className="size-4" />
-          <p className="text-[13px] font-bold">+5.2% this month</p>
+          <p className="text-[13px] font-bold">{trend >= 0 ? '+' : ''}{trend}% this month</p>
         </div>
       </div>
     </div>
   </motion.section>
 );
 
-const StatsGrid = () => (
+const StatsGrid = ({ income, expense, incomeTrend, expenseTrend }: any) => (
   <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
     <motion.div 
       initial={{ opacity: 0, x: -20 }}
@@ -156,11 +161,13 @@ const StatsGrid = () => (
         </div>
         <div>
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Income</p>
-          <p className="text-xl font-bold text-slate-900">$4,200.00</p>
+          <p className="text-xl font-bold text-slate-900">${income.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-[12px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">+12.0%</span>
+        <span className={`text-[12px] font-bold ${incomeTrend >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-red-500 bg-red-50'} px-2 py-0.5 rounded-md`}>
+          {incomeTrend >= 0 ? '+' : ''}{incomeTrend}%
+        </span>
         <span className="text-[11px] text-slate-400">vs last month</span>
       </div>
     </motion.div>
@@ -177,11 +184,13 @@ const StatsGrid = () => (
         </div>
         <div>
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Expenses</p>
-          <p className="text-xl font-bold text-slate-900">$2,150.00</p>
+          <p className="text-xl font-bold text-slate-900">${expense.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-[12px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-md">-3.5%</span>
+        <span className={`text-[12px] font-bold ${expenseTrend <= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-red-500 bg-red-50'} px-2 py-0.5 rounded-md`}>
+          {expenseTrend >= 0 ? '+' : ''}{expenseTrend}%
+        </span>
         <span className="text-[11px] text-slate-400">vs last month</span>
       </div>
     </motion.div>
@@ -270,52 +279,49 @@ const TransactionItem = ({ icon: Icon, title, category, date, amount, isPositive
   </motion.div>
 );
 
-const TransactionList = () => (
-  <section className="pb-6">
-    <div className="flex items-center justify-between mb-6 px-1">
-      <h2 className="text-slate-900 text-lg font-bold">Recent Transactions</h2>
-      <button className="text-emerald-600 text-sm font-bold px-4 py-2 rounded-xl hover:bg-emerald-50 transition-colors">View All History</button>
-    </div>
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      <TransactionItem 
-        icon={Utensils} 
-        title="Starbucks Coffee" 
-        category="Food & Drink" 
-        date="Today, 10:45 AM" 
-        amount={12.50} 
-        isPositive={false}
-        delay={0.3}
-      />
-      <TransactionItem 
-        icon={Car} 
-        title="Uber Trip" 
-        category="Transport" 
-        date="Yesterday, 08:20 PM" 
-        amount={24.80} 
-        isPositive={false}
-        delay={0.4}
-      />
-      <TransactionItem 
-        icon={Briefcase} 
-        title="Monthly Salary" 
-        category="Work" 
-        date="3 Days Ago" 
-        amount={4200.00} 
-        isPositive={true}
-        delay={0.5}
-      />
-      <TransactionItem 
-        icon={Home} 
-        title="Apartment Rent" 
-        category="Housing" 
-        date="5 Days Ago" 
-        amount={1200.00} 
-        isPositive={false}
-        delay={0.6}
-      />
-    </div>
-  </section>
-);
+const TransactionList = ({ transactions, onViewAll }: { transactions: any[], onViewAll: () => void }) => {
+  const iconMap: Record<string, any> = {
+    'Utensils': Utensils,
+    'Car': Car,
+    'Briefcase': Briefcase,
+    'Home': Home,
+    'ShoppingCart': ShoppingCart,
+  };
+
+  return (
+    <section className="pb-6">
+      <div className="flex items-center justify-between mb-6 px-1">
+        <h2 className="text-slate-900 text-lg font-bold">Recent Transactions</h2>
+        <button 
+          onClick={onViewAll}
+          className="text-emerald-600 text-sm font-bold px-4 py-2 rounded-xl hover:bg-emerald-50 transition-colors"
+        >
+          View All History
+        </button>
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {transactions.length === 0 ? (
+          <div className="col-span-full py-10 text-center text-slate-400 font-medium">
+            No recent transactions.
+          </div>
+        ) : (
+          transactions.map((item, idx) => (
+            <TransactionItem 
+              key={item.id}
+              icon={iconMap[item.icon_name] || ShoppingCart} 
+              title={item.title} 
+              category={item.category} 
+              date={item.date} 
+              amount={item.amount} 
+              isPositive={item.is_positive}
+              delay={0.3 + idx * 0.1}
+            />
+          ))
+        )}
+      </div>
+    </section>
+  );
+};
 
 const BottomNav = ({ currentPage, setCurrentPage }: { currentPage: Page, setCurrentPage: (p: Page) => void }) => (
   <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
@@ -360,24 +366,120 @@ const BottomNav = ({ currentPage, setCurrentPage }: { currentPage: Page, setCurr
   </div>
 );
 
-const Dashboard = () => (
-  <>
-    <MobileHeader />
-    <DesktopHeader />
-    <main className="flex-1 px-5 lg:px-8 py-4 lg:py-2 space-y-8 max-w-7xl w-full mx-auto">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          <BalanceCard />
-          <StatsGrid />
-          <TrendChart />
-        </div>
-        <div className="space-y-8">
-          <TransactionList />
-        </div>
+const Dashboard = ({ onNavigate }: { onNavigate: (p: Page) => void }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    balance: 12450.00,
+    trend: 5.2,
+    income: 4200.00,
+    expense: 2150.00,
+    incomeTrend: 12.0,
+    expenseTrend: -3.5
+  });
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch stats from a 'profiles' or 'summary' table
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .single();
+
+      if (profileData) {
+        setStats({
+          balance: profileData.balance || 0,
+          trend: profileData.balance_trend || 0,
+          income: profileData.total_income || 0,
+          expense: profileData.total_expense || 0,
+          incomeTrend: profileData.income_trend || 0,
+          expenseTrend: profileData.expense_trend || 0
+        });
+      }
+
+      // Fetch recent transactions
+      const { data: transData, error: transError } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(4);
+
+      if (transData) {
+        const mappedData = transData.map((item: any) => {
+          let iconName = 'ShoppingCart';
+          if (item.main_category === 'Pemasukan') iconName = 'Briefcase';
+          else if (item.main_category === 'Angsuran KPR') iconName = 'Home';
+          else if (item.main_category === 'Kebutuhan Harian') iconName = 'Utensils';
+          else if (item.main_category === 'Investasi') iconName = 'TrendingUp';
+
+          const createdAt = new Date(item.created_at);
+          const dateStr = createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const timeStr = createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+          return {
+            id: item.id,
+            icon_name: iconName,
+            title: item.description,
+            category: item.main_category,
+            date: `${dateStr}, ${timeStr}`,
+            amount: parseFloat(item.amount),
+            is_positive: item.type === 'income'
+          };
+        });
+        setRecentTransactions(mappedData);
+      }
+
+    } catch (err: any) {
+      console.error('Error fetching dashboard data:', err);
+      // We'll keep the default mock values if fetching fails
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+        <Loader2 className="size-12 animate-spin mb-4 opacity-20" />
+        <p className="font-bold">Loading Dashboard...</p>
       </div>
-    </main>
-  </>
-);
+    );
+  }
+
+  return (
+    <>
+      <MobileHeader />
+      <DesktopHeader />
+      <main className="flex-1 px-5 lg:px-8 py-4 lg:py-2 space-y-8 max-w-7xl w-full mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <BalanceCard balance={stats.balance} trend={stats.trend} />
+            <StatsGrid 
+              income={stats.income} 
+              expense={stats.expense} 
+              incomeTrend={stats.incomeTrend} 
+              expenseTrend={stats.expenseTrend} 
+            />
+            <TrendChart />
+          </div>
+          <div className="space-y-8">
+            <TransactionList 
+              transactions={recentTransactions} 
+              onViewAll={() => onNavigate('history')} 
+            />
+          </div>
+        </div>
+      </main>
+    </>
+  );
+};
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -396,7 +498,7 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="flex-1 flex flex-col"
             >
-              <Dashboard />
+              <Dashboard onNavigate={setCurrentPage} />
             </motion.div>
           )}
           {currentPage === 'reports' && (
@@ -416,10 +518,9 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col items-center justify-center text-slate-400"
+              className="flex-1 flex flex-col"
             >
-              <Receipt className="size-16 mb-4 opacity-20" />
-              <p className="font-bold">History Page Coming Soon</p>
+              <HistoryPage onBack={() => setCurrentPage('dashboard')} />
             </motion.div>
           )}
           {currentPage === 'profile' && (
