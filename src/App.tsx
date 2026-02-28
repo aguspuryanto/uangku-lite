@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Wallet, 
   Bell, 
@@ -16,14 +16,19 @@ import {
   Search,
   Settings,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  LayoutDashboard,
+  PieChart
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ReportPage } from './components/ReportPage';
 
-const SidebarItem = ({ icon: Icon, label, active = false }: any) => (
-  <a 
-    href="#" 
-    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+type Page = 'dashboard' | 'reports' | 'history' | 'profile';
+
+const SidebarItem = ({ icon: Icon, label, active = false, onClick }: any) => (
+  <button 
+    onClick={onClick}
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
       active 
         ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' 
         : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-600'
@@ -32,10 +37,10 @@ const SidebarItem = ({ icon: Icon, label, active = false }: any) => (
     <Icon className={`size-5 ${active ? 'text-white' : 'group-hover:text-emerald-600'}`} />
     <span className="font-semibold text-sm tracking-wide">{label}</span>
     {active && <ChevronRight className="ml-auto size-4 opacity-50" />}
-  </a>
+  </button>
 );
 
-const Sidebar = () => (
+const Sidebar = ({ currentPage, setCurrentPage }: { currentPage: Page, setCurrentPage: (p: Page) => void }) => (
   <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-slate-100 h-screen sticky top-0 p-6">
     <div className="flex items-center gap-3 mb-10 px-2">
       <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
@@ -46,10 +51,10 @@ const Sidebar = () => (
 
     <nav className="flex-1 space-y-2">
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-4">Main Menu</p>
-      <SidebarItem icon={Home} label="Dashboard" active />
-      <SidebarItem icon={Receipt} label="History" />
-      <SidebarItem icon={BarChart3} label="Reports" />
-      <SidebarItem icon={User} label="Profile" />
+      <SidebarItem icon={LayoutDashboard} label="Dashboard" active={currentPage === 'dashboard'} onClick={() => setCurrentPage('dashboard')} />
+      <SidebarItem icon={PieChart} label="Reports" active={currentPage === 'reports'} onClick={() => setCurrentPage('reports')} />
+      <SidebarItem icon={Receipt} label="History" active={currentPage === 'history'} onClick={() => setCurrentPage('history')} />
+      <SidebarItem icon={User} label="Profile" active={currentPage === 'profile'} onClick={() => setCurrentPage('profile')} />
       
       <div className="pt-8">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-4">Preferences</p>
@@ -312,17 +317,23 @@ const TransactionList = () => (
   </section>
 );
 
-const BottomNav = () => (
+const BottomNav = ({ currentPage, setCurrentPage }: { currentPage: Page, setCurrentPage: (p: Page) => void }) => (
   <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
     <div className="relative flex items-center justify-around bg-white/95 backdrop-blur-xl border-t border-slate-100 px-4 pb-9 pt-3 nav-shadow">
-      <a className="flex flex-col items-center gap-1.5 text-emerald-600 w-1/5" href="#">
-        <Home className="size-6 fill-emerald-600/10" />
+      <button 
+        onClick={() => setCurrentPage('dashboard')}
+        className={`flex flex-col items-center gap-1.5 w-1/5 ${currentPage === 'dashboard' ? 'text-emerald-600' : 'text-slate-400'}`}
+      >
+        <Home className={`size-6 ${currentPage === 'dashboard' ? 'fill-emerald-600/10' : ''}`} />
         <p className="text-[9px] font-bold uppercase tracking-widest">Home</p>
-      </a>
-      <a className="flex flex-col items-center gap-1.5 text-slate-400 w-1/5" href="#">
-        <Receipt className="size-6" />
-        <p className="text-[9px] font-bold uppercase tracking-widest">History</p>
-      </a>
+      </button>
+      <button 
+        onClick={() => setCurrentPage('reports')}
+        className={`flex flex-col items-center gap-1.5 w-1/5 ${currentPage === 'reports' ? 'text-emerald-600' : 'text-slate-400'}`}
+      >
+        <PieChart className={`size-6 ${currentPage === 'reports' ? 'fill-emerald-600/10' : ''}`} />
+        <p className="text-[9px] font-bold uppercase tracking-widest">Reports</p>
+      </button>
       <div className="relative flex justify-center w-1/5 -mt-10">
         <motion.button 
           whileTap={{ scale: 0.9 }}
@@ -331,46 +342,101 @@ const BottomNav = () => (
           <Plus className="size-8 stroke-[3]" />
         </motion.button>
       </div>
-      <a className="flex flex-col items-center gap-1.5 text-slate-400 w-1/5" href="#">
-        <BarChart3 className="size-6" />
-        <p className="text-[9px] font-bold uppercase tracking-widest">Reports</p>
-      </a>
-      <a className="flex flex-col items-center gap-1.5 text-slate-400 w-1/5" href="#">
-        <User className="size-6" />
+      <button 
+        onClick={() => setCurrentPage('history')}
+        className={`flex flex-col items-center gap-1.5 w-1/5 ${currentPage === 'history' ? 'text-emerald-600' : 'text-slate-400'}`}
+      >
+        <Receipt className={`size-6 ${currentPage === 'history' ? 'fill-emerald-600/10' : ''}`} />
+        <p className="text-[9px] font-bold uppercase tracking-widest">History</p>
+      </button>
+      <button 
+        onClick={() => setCurrentPage('profile')}
+        className={`flex flex-col items-center gap-1.5 w-1/5 ${currentPage === 'profile' ? 'text-emerald-600' : 'text-slate-400'}`}
+      >
+        <User className={`size-6 ${currentPage === 'profile' ? 'fill-emerald-600/10' : ''}`} />
         <p className="text-[9px] font-bold uppercase tracking-widest">Profile</p>
-      </a>
+      </button>
     </div>
   </div>
 );
 
+const Dashboard = () => (
+  <>
+    <MobileHeader />
+    <DesktopHeader />
+    <main className="flex-1 px-5 lg:px-8 py-4 lg:py-2 space-y-8 max-w-7xl w-full mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <BalanceCard />
+          <StatsGrid />
+          <TrendChart />
+        </div>
+        <div className="space-y-8">
+          <TransactionList />
+        </div>
+      </div>
+    </main>
+  </>
+);
+
 export default function App() {
+  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+
   return (
     <div className="flex min-h-screen bg-[#fcfcfd]">
-      <Sidebar />
+      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
       
       <div className="flex-1 flex flex-col min-w-0">
-        <MobileHeader />
-        <DesktopHeader />
+        <AnimatePresence mode="wait">
+          {currentPage === 'dashboard' && (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="flex-1 flex flex-col"
+            >
+              <Dashboard />
+            </motion.div>
+          )}
+          {currentPage === 'reports' && (
+            <motion.div
+              key="reports"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="flex-1 flex flex-col"
+            >
+              <ReportPage onBack={() => setCurrentPage('dashboard')} />
+            </motion.div>
+          )}
+          {currentPage === 'history' && (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="flex-1 flex flex-col items-center justify-center text-slate-400"
+            >
+              <Receipt className="size-16 mb-4 opacity-20" />
+              <p className="font-bold">History Page Coming Soon</p>
+            </motion.div>
+          )}
+          {currentPage === 'profile' && (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="flex-1 flex flex-col items-center justify-center text-slate-400"
+            >
+              <User className="size-16 mb-4 opacity-20" />
+              <p className="font-bold">Profile Page Coming Soon</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
         
-        <main className="flex-1 px-5 lg:px-8 py-4 lg:py-2 space-y-8 max-w-7xl w-full mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-              <BalanceCard />
-              <StatsGrid />
-              <TrendChart />
-            </div>
-            <div className="space-y-8">
-              <div className="hidden lg:block">
-                <TransactionList />
-              </div>
-              <div className="lg:hidden">
-                <TransactionList />
-              </div>
-            </div>
-          </div>
-        </main>
-        
-        <BottomNav />
+        <BottomNav currentPage={currentPage} setCurrentPage={setCurrentPage} />
       </div>
     </div>
   );
